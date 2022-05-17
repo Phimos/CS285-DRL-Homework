@@ -1,15 +1,12 @@
 import abc
 import itertools
-from torch import nn
-from torch.nn import functional as F
-from torch import optim
 
 import numpy as np
 import torch
-from torch import distributions
-
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.policies.base_policy import BasePolicy
+from torch import distributions, nn, optim
+from torch.nn import functional as F
 
 
 class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
@@ -86,7 +83,9 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
 
     # query the policy with observation(s) to get selected action(s)
     def get_action(self, obs: np.ndarray) -> np.ndarray:
-        # TODO: get this from HW1
+        obs = ptu.from_numpy(obs)
+        action = ptu.to_numpy(self.forward(obs).sample())
+        return action
 
     # update/train this policy
     def update(self, observations, actions, **kwargs):
@@ -123,6 +122,11 @@ class MLPPolicyPG(MLPPolicy):
         self.baseline_loss = nn.MSELoss()
 
     def update(self, observations, actions, advantages, q_values=None):
+        print(np.isnan(observations).any())
+        print(np.isnan(actions).any())
+        print(np.isnan(advantages).any())
+        if q_values is not None:
+            print(np.isnan(q_values).any())
         observations = ptu.from_numpy(observations)
         actions = ptu.from_numpy(actions)
         advantages = ptu.from_numpy(advantages)
@@ -137,7 +141,11 @@ class MLPPolicyPG(MLPPolicy):
         # HINT4: use self.optimizer to optimize the loss. Remember to
             # 'zero_grad' first
 
-        TODO
+        log_prob = self.forward(observations).log_prob(actions)
+        loss = - (log_prob * advantages).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()        
 
         if self.nn_baseline:
             ## TODO: update the neural network baseline using the q_values as
@@ -148,8 +156,14 @@ class MLPPolicyPG(MLPPolicy):
                 ## updating the baseline. Remember to 'zero_grad' first
             ## HINT2: You will need to convert the targets into a tensor using
                 ## ptu.from_numpy before using it in the loss
-
-            TODO
+            targets = (q_values - np.mean(q_values)) / np.std(q_values)
+            targets = ptu.from_numpy(targets)
+            preds = self.baseline(observations).flatten()
+            baseline_loss = self.baseline_loss(preds, targets)
+            self.baseline_optimizer.zero_grad()
+            baseline_loss.backward()
+            self.baseline_optimizer.step()
+            
 
         train_log = {
             'Training Loss': ptu.to_numpy(loss),
