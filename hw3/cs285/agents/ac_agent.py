@@ -5,6 +5,7 @@ from cs285.critics.bootstrapped_continuous_critic import \
 from cs285.infrastructure.replay_buffer import ReplayBuffer
 from cs285.infrastructure.utils import *
 from cs285.policies.MLP_policy import MLPPolicyAC
+
 from .base_agent import BaseAgent
 
 
@@ -39,10 +40,23 @@ class ACAgent(BaseAgent):
 
         # for agent_params['num_actor_updates_per_agent_update'] steps,
         #     update the actor
+        
+        critic_losses = []
+        for _ in range(self.agent_params['num_critic_updates_per_agent_update']):
+            critic_loss = self.critic.update(ob_no, ac_na, next_ob_no, re_n, terminal_n)
+            critic_losses.append(critic_loss)
+        
+        adv_n = self.estimate_advantage(ob_no, next_ob_no, re_n, terminal_n)
+        
+        actor_losses = []
+        for _ in range(self.agent_params['num_actor_updates_per_agent_update']):
+            actor_loss = self.actor.update(ob_no, ac_na, adv_n)
+            actor_losses.append(actor_loss)
+        
 
         loss = OrderedDict()
-        loss['Critic_Loss'] = TODO
-        loss['Actor_Loss'] = TODO
+        loss['Critic_Loss'] = np.mean(critic_losses)
+        loss['Actor_Loss'] = np.mean(actor_losses)
 
         return loss
 
@@ -53,7 +67,10 @@ class ACAgent(BaseAgent):
         # 3) estimate the Q value as Q(s, a) = r(s, a) + gamma*V(s')
         # HINT: Remember to cut off the V(s') term (ie set it to 0) at terminal states (ie terminal_n=1)
         # 4) calculate advantage (adv_n) as A(s, a) = Q(s, a) - V(s)
-        adv_n = TODO
+        V_s = self.critic.forward_np(ob_no)
+        V_s_next = self.critic.forward_np(next_ob_no)
+        Q_sa = re_n + self.gamma * V_s_next * (1 - terminal_n)
+        adv_n = Q_sa - V_s
 
         if self.standardize_advantages:
             adv_n = (adv_n - np.mean(adv_n)) / (np.std(adv_n) + 1e-8)
