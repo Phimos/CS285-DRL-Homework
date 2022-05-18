@@ -122,11 +122,6 @@ class MLPPolicyPG(MLPPolicy):
         self.baseline_loss = nn.MSELoss()
 
     def update(self, observations, actions, advantages, q_values=None):
-        print(np.isnan(observations).any())
-        print(np.isnan(actions).any())
-        print(np.isnan(advantages).any())
-        if q_values is not None:
-            print(np.isnan(q_values).any())
         observations = ptu.from_numpy(observations)
         actions = ptu.from_numpy(actions)
         advantages = ptu.from_numpy(advantages)
