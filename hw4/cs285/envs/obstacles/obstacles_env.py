@@ -1,11 +1,13 @@
 import gym
+import matplotlib
 import numpy as np
 from gym import spaces
 
+matplotlib.use('Agg')
 class Obstacles(gym.Env):
     def __init__(self, start=[-0.5, 0.75], end=[0.7, -0.8], random_starts=True):
 
-        import matplotlib.pyplot as plt #inside, so doesnt get imported when not using this env
+        import matplotlib.pyplot as plt  # inside, so doesnt get imported when not using this env
         self.plt = plt
 
         self.action_dim = self.ac_dim = 2
