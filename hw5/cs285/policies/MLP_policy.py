@@ -1,15 +1,12 @@
 import abc
 import itertools
-from torch import nn
-from torch.nn import functional as F
-from torch import optim
 
 import numpy as np
 import torch
-from torch import distributions
-
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.policies.base_policy import BasePolicy
+from torch import distributions, nn, optim
+from torch.nn import functional as F
 
 
 class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
@@ -171,6 +168,11 @@ class MLPPolicyAWAC(MLPPolicy):
 
         # TODO update the policy network utilizing AWAC update
 
-        actor_loss = None
+        log_prob = self.forward(observations).log_prob(actions)
+        actor_loss = - (log_prob * F.softmax(adv_n / self.lambda_awac, dim=-1)).mean()
+        
+        self.optimizer.zero_grad()
+        actor_loss.backward()
+        self.optimizer.step()
         
         return actor_loss.item()
